@@ -3,7 +3,9 @@
 40
 (if #t 10 20)
 (if #f 400 -500)
-(not (equal? 1 40))
-(if (equal? 1 1) 10 20)
-(if (equal? 1 2) 10 (+ 10 10))
-(list 1 2 3 4 5)
+(list 1 2 3)
+(list (list 1 2) (list 3 4) 5)
+(+ 3 4)
+(+ 3 (* 2 5))
+(and #t #f)
+(not #f)

@@ -55,15 +55,17 @@ interpretPaddle (Just exprs) =
 data Expr = Number Integer |
             Boolean Bool |
             If Expr Expr Expr |
-            BinaryExpr BaseExpr Expr Expr |
-            NotExpr Expr |
-            ListExpr [Expr]
-
+            Not Expr |
+            List [Expr] |
+            BinaryExpr BaseExpr Expr Expr
+            
 instance Show Expr where
     show (Number x) = show x
     show (Boolean True) = "#t"
     show (Boolean False) = "#f"
-    show (ListExpr vals) = printList vals "'("
+    show (List []) = "'()"
+    show (List vals) = (printList vals "(")
+
     -- Note: the following definition is not necessary for this assignment,
     -- but you may find it helpful to define string representations of all
     -- expression forms.
@@ -77,9 +79,10 @@ parseExpr (LiteralInt n) = Number n
 parseExpr (LiteralBool b) = Boolean b
 
 -- Parse a 'list' expression
+parseExpr (Atom "list") =
+    List []
 parseExpr (Compound ((Atom "list"):vals)) =
-    ListExpr (map parseExpr vals)
-
+    List (map parseExpr vals)
 parseExpr (Compound [Atom "if", b, x, y]) =
     If (parseExpr b) (parseExpr x) (parseExpr y)
 -- Parse any binary expression (an expression with two parameters)
@@ -87,7 +90,10 @@ parseExpr (Compound [(Atom opStr), x, y]) =
     BinaryExpr (Atom opStr) (parseExpr x) (parseExpr y)
 -- Parse a 'not' expression
 parseExpr (Compound [Atom "not", x]) =
-    NotExpr (parseExpr x)
+    Not (parseExpr x)
+
+
+
 
 -- |Evaluate an AST by simplifying it into
 --  a number, boolean, list, or function value.
@@ -105,7 +111,6 @@ evaluate (If cond x y) =
     (evaluate (If (evaluate cond) x y))
 
 -- Evaluate some kind of binary expression
--- TODO: Include patterns for error checking
 evaluate (BinaryExpr (Atom opStr) (Number x) (Number y)) =
     case opStr of
         "+" -> (Number (x + y))
@@ -120,8 +125,8 @@ evaluate (BinaryExpr (Atom opStr) x y) =
     (evaluate (BinaryExpr (Atom opStr) (evaluate x) (evaluate y)))
 
 -- Evaluate a 'not' expression
-evaluate (NotExpr (Boolean x)) = (Boolean (not x))
-evaluate (NotExpr x) = (evaluate (NotExpr (evaluate x)))
+evaluate (Not (Boolean x)) = (Boolean (not x))
+evaluate (Not x) = (evaluate (Not (evaluate x)))
 
 -- Evaluate a 'list'
-evaluate (ListExpr vals) = (ListExpr vals)
+evaluate (List vals) = (List (map evaluate vals))
