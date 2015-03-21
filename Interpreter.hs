@@ -41,7 +41,7 @@ printList (x:xs) init = printList xs (init ++ show x ++ " ")
 getMaybe (Just val) = val
 
 -- Helper function that searches for an identifier and returns its corresponding value
-getIdentifier :: BaseExpr -> [(BaseExpr, Expr)] -> Expr
+getIdentifier :: [Char] -> [[Char], Expr)] -> Expr
 getIdentifier ident exprs = (getMaybe (lookup ident exprs))
 
 -- |Take the output of the base parser and interpret it,
