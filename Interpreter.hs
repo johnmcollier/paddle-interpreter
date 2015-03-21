@@ -38,8 +38,7 @@ printList [] init = init
 printList [x] init = init ++ show x ++ ")"
 printList (x:xs) init = printList xs (init ++ show x ++ " ")
 
-getMaybe :: (Maybe a) -> a
-getMaybe (Maybe val) = val
+getMaybe (Just val) = val
 
 -- Helper function that searches for an identifier and returns its corresponding value
 getIdentifier :: BaseExpr -> [(BaseExpr, Expr)] -> Expr
