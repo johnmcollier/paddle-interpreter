@@ -38,6 +38,9 @@ printList [] init = init
 printList [x] init = init ++ show x ++ ")"
 printList (x:xs) init = printList xs (init ++ show x ++ " ")
 
+-- Helper function that searches for an identifier and returns its corresponding value
+getIdentifier :: BaseExpr -> [(BaseExpr, Expr)] -> Expr
+getIdentifier (Atom ident) exprs = (fromMaybe (lookup ident exprs))
 
 -- |Take the output of the base parser and interpret it,
 --  first constructing the AST, then evaluating it,
