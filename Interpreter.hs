@@ -57,6 +57,7 @@ data Expr = Number Integer |
             If Expr Expr Expr |
             Not Expr |
             List [Expr] |
+            Cond [[Expr]] Expr |
             BinaryExpr BaseExpr Expr Expr
             
 instance Show Expr where
@@ -85,6 +86,8 @@ parseExpr (Compound ((Atom "list"):vals)) =
     List (map parseExpr vals)
 parseExpr (Compound [Atom "if", b, x, y]) =
     If (parseExpr b) (parseExpr x) (parseExpr y)
+ 
+
 -- Parse any binary expression (an expression with two parameters)
 parseExpr (Compound [(Atom opStr), x, y]) =
     BinaryExpr (Atom opStr) (parseExpr x) (parseExpr y)
@@ -130,3 +133,5 @@ evaluate (Not x) = (evaluate (Not (evaluate x)))
 
 -- Evaluate a 'list'
 evaluate (List vals) = (List (map evaluate vals))
+
+
