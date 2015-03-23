@@ -79,7 +79,8 @@ data Expr = Number Integer |
             List [Expr] |
             BinaryExpr BaseExpr Expr Expr |
 			Identifier [Char] Expr |
-			Error
+			Error |
+			Null
             
 instance Show Expr where
     show (Number x) = show x
@@ -88,6 +89,7 @@ instance Show Expr where
     show (List []) = "'()"
     show (List vals) = (printList vals "(")
     show (Identifier _ expr) = show expr
+    show (Null) = ""
     -- Note: the following definition is not necessary for this assignment,
     -- but you may find it helpful to define string representations of all
     -- expression forms.
@@ -118,6 +120,8 @@ parseExpr (Compound [(Atom opStr), x, y]) =
 parseExpr (Compound [Atom "not", x]) =
     Not (parseExpr x)
 
+parseExpr (Atom identName) =
+	(Identifier identName Null)
 
 -- |Evaluate an AST by simplifying it into
 --  a number, boolean, list, or function value.
@@ -160,3 +164,8 @@ evaluate ident (Not x) =
 -- Evaluate a 'list'
 evaluate ident (List vals) = 
 	(ident, (List (map (\x -> let (_, output) = (evaluate ident x) in output) vals)))
+
+evaluate ident (Identifier name Null) =
+	(ident, (getIdentifier name ident))
+evaluate ident (Identifier name expr) =
+	((name, expr):ident, Null)
