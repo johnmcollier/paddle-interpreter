@@ -33,23 +33,7 @@ main =
         parseFile file >>= \baseTree ->
         putStr (interpretPaddle baseTree)
 
--- Helper for outputting lists
-printList [] init = init
-printList [x] init = init ++ show x ++ ")"
-printList (x:xs) init = printList xs (init ++ show x ++ " ")
 
-getMaybe (Just val) = val
-
--- Helper function that searches for an identifier and returns its corresponding value
-getIdentifier :: [Char] -> [([Char], Expr)] -> Expr
-getIdentifier ident expr = (getMaybe (lookup ident expr))
-
--- Inserts a new identifier into the identifier list and returns the updated list
-putIdentifier :: ([Char], Expr) -> [([Char], Expr)] -> [([Char], Expr)]
-putIdentifier (name, expr) idents = (name, expr):idents
-
-isEmpty :: [([Char], Expr)] -> Bool
-isEmpty idents = null idents
 
 -- |Take the output of the base parser and interpret it,
 --  first constructing the AST, then evaluating it,
@@ -61,7 +45,7 @@ interpretPaddle (Just exprs) =
         vals = evalExpr ast []
     in
         -- String representations of each value, joined with newlines
-        unlines (map show vals)
+        unlines (map myShow (findErrors (filter isNotNull vals) []))
 
 evalExpr :: [Expr] -> [([Char], Expr)] -> [Expr]
 evalExpr asts idens = 
@@ -78,9 +62,12 @@ data Expr = Number Integer |
             Not Expr |
             List [Expr] |
             BinaryExpr BaseExpr Expr Expr |
-			Identifier [Char] Expr |
-			Error |
-			Null
+            Identifier [Char] Expr |
+            Function [Char] Expr |
+            FunctionApp Expr [Expr] |
+            Error [Char] |
+            Cond [Expr] |
+            Null
             
 instance Show Expr where
     show (Number x) = show x
@@ -89,7 +76,9 @@ instance Show Expr where
     show (List []) = "'()"
     show (List vals) = (printList vals "(")
     show (Identifier _ expr) = show expr
+    show (Function _ _) = "#<procedure>"
     show (Null) = ""
+    show (Error errType) = errType
     -- Note: the following definition is not necessary for this assignment,
     -- but you may find it helpful to define string representations of all
     -- expression forms.
@@ -102,26 +91,40 @@ parseExpr :: BaseExpr -> Expr
 parseExpr (LiteralInt n) = Number n
 parseExpr (LiteralBool b) = Boolean b
 
+
+
+parseExpr (Compound [Atom "else", expr]) =
+   parseExpr expr
 -- Parse a 'list' expression
 parseExpr (Atom "list") =
     List []
-parseExpr (Atom "else") =
-	Boolean True
 parseExpr (Compound ((Atom "list"):vals)) =
     List (map parseExpr vals)
 parseExpr (Compound [Atom "if", b, x, y]) =
     If (parseExpr b) (parseExpr x) (parseExpr y)
 parseExpr (Compound [Atom "define", Atom name, expr]) =
-	Identifier name (parseExpr expr)
--- Parse any binary expression (an expression with two parameters)
-parseExpr (Compound [(Atom opStr), x, y]) =
-    BinaryExpr (Atom opStr) (parseExpr x) (parseExpr y)
+    Identifier name (parseExpr expr)
+parseExpr (Compound ((Atom "let"):exprs)) = 
+    Number 1
+parseExpr (Compound ((Atom "let*"):exprs)) = 
+    Number 1
 -- Parse a 'not' expression
 parseExpr (Compound [Atom "not", x]) =
     Not (parseExpr x)
-
 parseExpr (Atom identName) =
 	(Identifier identName Null)
+
+parseExpr (Compound [x, expr]) = 
+    let output = parseExpr x
+    in case output of
+           Boolean True -> parseExpr expr
+           _ -> Null
+parseExpr (Compound ((Atom "cond"):exprs)) =
+    Cond (map parseExpr exprs)
+-- Parse any binary expression (an expression with two parameters)
+parseExpr (Compound [(Atom opStr), x, y]) =
+    BinaryExpr (Atom opStr) (parseExpr x) (parseExpr y)
+    
 
 -- |Evaluate an AST by simplifying it into
 --  a number, boolean, list, or function value.
@@ -169,3 +172,62 @@ evaluate ident (Identifier name Null) =
 	(ident, (getIdentifier name ident))
 evaluate ident (Identifier name expr) =
 	((name, expr):ident, Null)
+
+-- Evaluate an 'Error'
+evaluate ident (Error errorType) =
+	(ident, (Error errorType))
+
+-- Evaluate a 'Cond'
+evaluate ident (Cond exprs) = 
+        let (_, output) = (evaluate ident (head (filter isNotNull exprs)))
+	in (ident, output)
+----- HELPER FUNCTIONS -----------
+-- Helper for outputting lists
+printList [] init = init
+printList [x] init = init ++ show x ++ ")"
+printList (x:xs) init = printList xs (init ++ show x ++ " ")
+
+getMaybe (Just val) = val
+getMaybe (Nothing) = (Error "Syntax error")
+
+-- Helper function that searches for an identifier and returns its corresponding value
+getIdentifier :: [Char] -> [([Char], Expr)] -> Expr
+getIdentifier ident expr = (getMaybe (lookup ident expr))
+
+-- Inserts a new identifier into the identifier list and returns the updated list
+putIdentifier :: ([Char], Expr) -> [([Char], Expr)] -> [([Char], Expr)]
+putIdentifier (name, expr) idents = (name, expr):idents
+
+isEmpty :: [([Char], Expr)] -> Bool
+isEmpty idents = null idents
+
+-- Helper function that returns True iff an Expr is a 'Null' type
+isNotNull :: Expr -> Bool
+isNotNull expr = case expr of
+                  Null -> False
+                  _ -> True 
+
+isError :: Expr -> Bool
+isError expr = case expr of
+                   (Error _) -> True
+                   _ -> False
+
+-- Helper function that checks a list of expressions for an error
+-- It returns the list up to and including the error, otherwise the
+-- entire list is returned
+findErrors :: [Expr] -> [Expr] -> [Expr]
+findErrors [] acc = acc
+findErrors exprs acc =
+    if (isError (head exprs))
+        then acc++[(head exprs)]
+        else findErrors (tail exprs) (acc++[(head exprs)])
+
+-- Function that adds the little apostrophe in front of lists
+showList :: [Char] -> [Char]
+showList listOutput = "'"++listOutput
+
+-- Custom show function, used to append values to show output (mainly for lists)
+myShow :: Expr -> [Char]
+myShow expr = case expr of
+                  (List _) -> "'"++(show expr)
+                  _ -> (show expr)
